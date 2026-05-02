@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qibla Finder</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+        .compass-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #arrow {
+            width: 0; 
+            height: 0; 
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-bottom: 60px solid #27ae60;
+            transition: transform 0.1s ease-out;
+        }
+        .info {
+            margin-top: 20px;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Qibla Finder</h2>
+    
+    <div class="compass-container">
+        <div id="arrow"></div>
+    </div>
+
+    <div class="info">
+        <p id="status">Click the button to start</p>
+        <button onclick="init()">Get Qibla Direction</button>
+    </div>
+
+    <script>
+        const kaaba = { lat: 21.4225, lng: 39.8262 };
+        let qiblaAngle = 0;
+
+        async function init() {
+            if (!navigator.geolocation) {
+                alert("Geolocation is not supported by your browser.");
+                return;
+            }
+
+            // 1. Get Location
+            navigator.geolocation.getCurrentPosition(position => {
+                const { latitude, longitude } = position.coords;
+                qiblaAngle = calculateQibla(latitude, longitude);
+                document.getElementById('status').innerText = `Qibla is at ${qiblaAngle.toFixed(2)}° from North`;
+                
+                // 2. Start Compass
+                startCompass();
+            }, (err) => {
+                alert("Please allow location access.");
+            });
+        }
+
+        function calculateQibla(lat, lng) {
+            const phi1 = lat * Math.PI / 180;
+            const phi2 = kaaba.lat * Math.PI / 180;
+            const delL = (kaaba.lng - lng) * Math.PI / 180;
+
+            const y = Math.sin(delL);
+            const x = Math.cos(phi1) * Math.tan(phi2) - Math.sin(phi1) * Math.cos(delL);
+            
+            let bearing = Math.atan2(y, x) * 180 / Math.PI;
+            return (bearing + 360) % 360;
+        }
+
+        function startCompass() {
+            // iOS requires explicit permission for DeviceOrientation
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(state => {
+                        if (state === 'granted') {
+                            window.addEventListener('deviceorientation', handleOrientation);
+                        }
+                    });
+            } else {
+                window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+                window.addEventListener('deviceorientation', handleOrientation, true);
+            }
+        }
+
+        function handleOrientation(event) {
+            let heading = event.webkitCompassHeading || (360 - event.alpha);
+            
+            if (heading !== undefined) {
+                // The arrow should point to (Qibla Angle - Current Heading)
+                const arrowRotation = qiblaAngle - heading;
+                document.getElementById('arrow').style.transform = `rotate(${arrowRotation}deg)`;
+            }
+        }
+    </script>
+</body>
+</html>
